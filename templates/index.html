@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<head>
+    <meta charset="UTF-8">
+    <title>CyberPulse</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #0a0a0a; color: #00ff88; font-family: 'Courier New', monospace; }
+        header { padding: 14px 20px; border-bottom: 1px solid #00ff8833; display: flex; align-items: center; gap: 12px; }
+        h1 { font-size: 20px; letter-spacing: 4px; }
+        .live { background: #00ff8822; color: #00ff88; border: 1px solid #00ff88; padding: 3px 10px; border-radius: 4px; font-size: 11px; animation: blink 1s infinite; }
+        @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+        .stats { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; padding: 14px 20px; }
+        .stat-card { background: #111; border: 1px solid #00ff8822; border-radius: 8px; padding: 12px; text-align: center; }
+        .stat-card .number { font-size: 26px; font-weight: bold; color: #00ff88; }
+        .stat-card .label { font-size: 10px; color: #555; margin-top: 2px; }
+        #map { height: 340px; width: 100%; filter: brightness(0.85) saturate(0.6) hue-rotate(100deg); }
+        .leaflet-container { background: #0a0a0a !important; }
+        .scan-bar { display: flex; gap: 10px; padding: 14px 20px; }
+        .scan-bar input { flex: 1; background: #111; border: 1px solid #00ff8833; color: #00ff88; padding: 10px 14px; border-radius: 6px; font-family: monospace; font-size: 13px; outline: none; }
+        .scan-bar input:focus { border-color: #00ff88; }
+        .scan-bar button { background: #00ff8822; border: 1px solid #00ff88; color: #00ff88; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-family: monospace; letter-spacing: 1px; }
+        .scan-bar button:hover { background: #00ff8844; }
+        #result { margin: 0 20px 14px; background: #111; border: 1px solid #00ff8822; border-radius: 8px; padding: 14px; font-size: 12px; display: none; }
+        .result-row { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid #ffffff08; }
+        .result-row:last-child { border-bottom: none; }
+        .key { color: #555; }
+        .val { color: #00ff88; }
+        .val.danger { color: #ff4444; }
+        .val.warn { color: #ff8800; }
+        .feed-section { padding: 0 20px 20px; }
+        .feed-title { font-size: 11px; letter-spacing: 2px; color: #555; margin-bottom: 8px; }
+        .feed { border: 1px solid #00ff8815; border-radius: 8px; overflow: hidden; }
+        .feed-row { display: grid; grid-template-columns: 130px 1fr 80px 60px; gap: 8px; padding: 9px 14px; border-bottom: 1px solid #ffffff06; font-size: 11px; align-items: center; }
+        .feed-row:last-child { border-bottom: none; }
+        .feed-row:hover { background: #00ff8808; }
+        .badge { padding: 2px 8px; border-radius: 4px; font-size: 10px; text-align: center; }
+        .badge.critical { background: #ff000022; color: #ff4444; border: 1px solid #ff444433; }
+        .badge.high { background: #ff440022; color: #ff6644; border: 1px solid #ff664433; }
+        .badge.med { background: #ff880022; color: #ff8800; border: 1px solid #ff880033; }
+        .badge.low { background: #00ff8811; color: #00ff88; border: 1px solid #00ff8833; }
+        .ip { color: #00aaff; }
+        .country-col { color: #888; }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>CYBERPULSE</h1>
+    <span class="live">● LIVE</span>
+    <span style="margin-left:auto;font-size:11px;color:#444;">Global IP Threat Intelligence</span>
+</header>
+
+<div class="stats">
+    <div class="stat-card">
+        <div class="number" id="total">0</div>
+        <div class="label">IPs SCANNED</div>
+    </div>
+    <div class="stat-card">
+        <div class="number" id="dangerous">0</div>
+        <div class="label">DANGEROUS</div>
+    </div>
+    <div class="stat-card">
+        <div class="number" id="countries">0</div>
+        <div class="label">COUNTRIES</div>
+    </div>
+</div>
+
+<div id="map"></div>
+
+<div class="scan-bar">
+    <input type="text" id="ip-input" placeholder="Enter IP address... (ex: 185.220.101.1)" />
+    <button onclick="checkIP()">SCAN ▶</button>
+</div>
+
+<div id="result"></div>
+<div style="padding: 0 20px 14px; display:flex; justify-content:flex-end;">
+    <button onclick="exportPDF()" style="background:#00ff8811;border:1px solid #00ff8844;color:#00ff88;padding:8px 18px;border-radius:6px;cursor:pointer;font-family:monospace;font-size:12px;letter-spacing:1px;">
+        ⬇ EXPORT PDF REPORT
+    </button>
+</div>
+
+<div class="feed-section">
+    <div class="feed-title">RECENT SCANS</div>
+    <div class="feed" id="feed">
+        <div class="feed-row" style="color:#333;font-size:11px;">
+            <span>No scans yet — enter an IP above</span>
+        </div>
+    </div>
+</div>
+
+<script>
+const map = L.map('map', { zoomControl: true, attributionControl: false }).setView([20, 0], 2);
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 10,
+    opacity: 0.4
+}).addTo(map);
+
+let total = 0, dangerous = 0;
+let countries = new Set();
+let scans = [];
+let markers = [];
+
+function getRisk(score) {
+    if (score >= 90) return { label: 'CRITICAL', cls: 'critical', color: '#ff4444' };
+    if (score >= 60) return { label: 'HIGH',     cls: 'high',     color: '#ff6644' };
+    if (score >= 30) return { label: 'MEDIUM',   cls: 'med',      color: '#ff8800' };
+    return                  { label: 'LOW',      cls: 'low',      color: '#00ff88' };
+}
+
+async function checkIP() {
+    const ip = document.getElementById('ip-input').value.trim();
+    if (!ip) return;
+
+    const btn = document.querySelector('button');
+    btn.textContent = 'SCANNING...';
+    btn.disabled = true;
+
+    try {
+        const res = await fetch(`/api/check?ip=${ip}`);
+        const json = await res.json();
+        const d = json.data;
+
+        if (!d) { alert('Invalid IP or API error'); return; }
+        if (d.abuseConfidenceScore >= 90) playAlert();
+
+        total++;
+        if (d.abuseConfidenceScore >= 50) dangerous++;
+        if (d.countryCode) countries.add(d.countryCode);
+
+        document.getElementById('total').textContent = total;
+        document.getElementById('dangerous').textContent = dangerous;
+        document.getElementById('countries').textContent = countries.size;
+
+        // Get coordinates and add to map
+        getCoords(d);
+        scans.unshift(d);
+        updateFeed();
+        showResult(d);
+
+    } catch(e) {
+        alert('Error — check CMD for details');
+    }
+
+    btn.textContent = 'SCAN ▶';
+    btn.disabled = false;
+    document.getElementById('ip-input').value = '';
+}
+
+async function getCoords(d) {
+    try {
+        const geo = await fetch(`https://ipapi.co/${d.ipAddress}/json/`);
+        const g = await geo.json();
+        if (g.latitude && g.longitude) {
+            const risk = getRisk(d.abuseConfidenceScore);
+            const marker = L.circleMarker([g.latitude, g.longitude], {
+                radius: 8,
+                fillColor: risk.color,
+                color: risk.color,
+                weight: 2,
+                opacity: 0.9,
+                fillOpacity: 0.6
+            }).addTo(map);
+
+            marker.bindPopup(`
+                <div style="font-family:monospace;font-size:12px;background:#111;color:#00ff88;padding:8px;border-radius:4px;">
+                    <b>${d.ipAddress}</b><br>
+                    ${d.countryName || 'Unknown'}<br>
+                    Score: <span style="color:${risk.color}">${d.abuseConfidenceScore}%</span><br>
+                    Risk: <span style="color:${risk.color}">${risk.label}</span>
+                </div>
+            `);
+            markers.push(marker);
+            map.flyTo([g.latitude, g.longitude], 4, { duration: 1.5 });
+        }
+    } catch(e) {}
+}
+
+function showResult(d) {
+    function showResult(d) {
+    const box = document.getElementById('result');
+    box.style.display = 'block';
+    const risk = getRisk(d.abuseConfidenceScore);
+    
+    const attackTypes = d.attackTypes && d.attackTypes.length > 0 
+        ? d.attackTypes.join(' · ') 
+        : 'None detected';
+
+    box.innerHTML = `
+        <div class="result-row"><span class="key">IP Address</span><span class="val">${d.ipAddress}</span></div>
+        <div class="result-row"><span class="key">Risk Level</span><span class="val" style="color:${risk.color};font-weight:bold">⚠ ${d.riskLevel}</span></div>
+        <div class="result-row"><span class="key">Abuse Score</span><span class="val ${d.abuseConfidenceScore>=50?'danger':''}">${d.abuseConfidenceScore}%</span></div>
+        <div class="result-row"><span class="key">Attack Types</span><span class="val" style="color:#ff8800">${attackTypes}</span></div>
+        <div class="result-row"><span class="key">Country</span><span class="val">${d.countryName || 'Unknown'}</span></div>
+        <div class="result-row"><span class="key">ISP</span><span class="val">${d.isp || 'Unknown'}</span></div>
+        <div class="result-row"><span class="key">TOR Node</span><span class="val ${d.isTor?'danger':''}">${d.isTor ? '⚠️ YES' : 'No'}</span></div>
+        <div class="result-row"><span class="key">Total Reports</span><span class="val">${d.totalReports}</span></div>
+        <div class="result-row"><span class="key">Last Reported</span><span class="val">${d.lastReportedAt ? d.lastReportedAt.split('T')[0] : 'Never'}</span></div>
+        <div class="result-row"><span class="key">Malicious</span><span class="val ${d.isMalicious?'danger':''}">${d.isMalicious ? '🔴 YES' : '🟢 CLEAN'}</span></div>
+    `;
+}
+    
+}
+
+function updateFeed() {
+    const feed = document.getElementById('feed');
+    feed.innerHTML = scans.slice(0, 8).map(d => {
+        const risk = getRisk(d.abuseConfidenceScore);
+        return `
+        <div class="feed-row">
+            <span class="ip">${d.ipAddress}</span>
+            <span class="country-col">${d.countryName || 'Unknown'}</span>
+            <span class="badge ${risk.cls}">${risk.label}</span>
+            <span style="color:${risk.color};font-weight:bold">${d.abuseConfidenceScore}%</span>
+        </div>`;
+    }).join('');
+}
+
+document.getElementById('ip-input').addEventListener('keypress', e => {
+    if (e.key === 'Enter') checkIP();
+});
+function exportPDF() {
+    if (scans.length === 0) {
+        alert('No scans yet — scan some IPs first!');
+        return;
+    }
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+
+    // Header
+    doc.setFillColor(10, 10, 10);
+    doc.rect(0, 0, 210, 297, 'F');
+    doc.setTextColor(0, 255, 136);
+    doc.setFontSize(22);
+    doc.text('CYBERPULSE', 20, 25);
+    doc.setFontSize(10);
+    doc.setTextColor(100, 100, 100);
+    doc.text('Threat Intelligence Report', 20, 33);
+    doc.text(`Generated: ${new Date().toLocaleString()}`, 20, 40);
+
+    // Stats
+    doc.setDrawColor(0, 255, 136);
+    doc.setLineWidth(0.3);
+    doc.line(20, 45, 190, 45);
+    doc.setTextColor(0, 255, 136);
+    doc.setFontSize(11);
+    doc.text(`Total Scanned: ${total}`, 20, 55);
+    doc.text(`Dangerous: ${dangerous}`, 80, 55);
+    doc.text(`Countries: ${countries.size}`, 150, 55);
+    doc.line(20, 60, 190, 60);
+
+    // Table header
+    doc.setFontSize(9);
+    doc.setTextColor(150, 150, 150);
+    doc.text('IP ADDRESS', 20, 70);
+    doc.text('COUNTRY', 75, 70);
+    doc.text('SCORE', 130, 70);
+    doc.text('RISK', 155, 70);
+    doc.text('TOR', 180, 70);
+    doc.line(20, 73, 190, 73);
+
+    // Table rows
+    let y = 82;
+    scans.forEach(d => {
+        const risk = getRisk(d.abuseConfidenceScore);
+        
+        if (d.abuseConfidenceScore >= 90) doc.setTextColor(255, 68, 68);
+        else if (d.abuseConfidenceScore >= 60) doc.setTextColor(255, 102, 68);
+        else if (d.abuseConfidenceScore >= 30) doc.setTextColor(255, 136, 0);
+        else doc.setTextColor(0, 255, 136);
+
+        doc.text(d.ipAddress || '-', 20, y);
+        doc.setTextColor(180, 180, 180);
+        doc.text((d.countryName || 'Unknown').substring(0, 18), 75, y);
+        doc.text(`${d.abuseConfidenceScore}%`, 130, y);
+        doc.text(risk.label, 155, y);
+        doc.text(d.isTor ? 'YES' : 'No', 180, y);
+
+        doc.setDrawColor(30, 30, 30);
+        doc.line(20, y + 3, 190, y + 3);
+        y += 10;
+
+        if (y > 270) {
+            doc.addPage();
+            doc.setFillColor(10, 10, 10);
+            doc.rect(0, 0, 210, 297, 'F');
+            y = 20;
+        }
+    });
+
+    // Footer
+    doc.setTextColor(50, 50, 50);
+    doc.setFontSize(8);
+    doc.text('CyberPulse — IP Threat Intelligence Dashboard', 20, 285);
+
+    doc.save(`cyberpulse-report-${Date.now()}.pdf`);
+}
+function playAlert() {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    
+    const beep = (freq, start, duration) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.frequency.value = freq;
+        osc.type = 'square';
+        gain.gain.setValueAtTime(0.3, ctx.currentTime + start);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + start + duration);
+        osc.start(ctx.currentTime + start);
+        osc.stop(ctx.currentTime + start + duration);
+    };
+
+    beep(880, 0,    0.1);
+    beep(660, 0.15, 0.1);
+    beep(880, 0.3,  0.1);
+    beep(440, 0.45, 0.3);
+}
+</script>
+</body>
+</html>
