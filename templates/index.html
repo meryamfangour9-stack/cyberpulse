@@ -48,6 +48,7 @@
         .country-col { color: #888; }
     </style>
 </head>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <body>
 
 <header>
@@ -86,7 +87,16 @@
         ⬇ EXPORT PDF REPORT
     </button>
 </div>
-
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:0 20px 14px;">
+    <div style="background:#111;border:1px solid #00ff8822;border-radius:8px;padding:14px;">
+        <div style="font-size:11px;letter-spacing:2px;color:#555;margin-bottom:10px;">RISK LEVELS</div>
+        <canvas id="riskChart" height="180"></canvas>
+    </div>
+    <div style="background:#111;border:1px solid #00ff8822;border-radius:8px;padding:14px;">
+        <div style="font-size:11px;letter-spacing:2px;color:#555;margin-bottom:10px;">TOP COUNTRIES</div>
+        <canvas id="countryChart" height="180"></canvas>
+    </div>
+</div>
 <div class="feed-section">
     <div class="feed-title">RECENT SCANS</div>
     <div class="feed" id="feed">
@@ -143,6 +153,8 @@ async function checkIP() {
         getCoords(d);
         scans.unshift(d);
         updateFeed();
+        updateCharts();
+        showResult(d);
         showResult(d);
 
     } catch(e) {
@@ -352,6 +364,7 @@ async function bulkScan() {
                 scans.unshift(d);
                 getCoords(d);
                 updateFeed();
+                updateCharts();
                 showResult(d);
             }
         } catch(e) {}
@@ -360,6 +373,60 @@ async function bulkScan() {
 
     btn.textContent = 'BULK SCAN ▶▶';
     btn.disabled = false;
+}
+let riskChartObj = null;
+let countryChartObj = null;
+
+function updateCharts() {
+    const riskCounts = { CRITICAL: 0, HIGH: 0, MEDIUM: 0, LOW: 0 };
+    const countryCounts = {};
+
+    scans.forEach(d => {
+        const risk = getRisk(d.abuseConfidenceScore);
+        riskCounts[risk.label]++;
+        const c = d.countryCode || 'Unknown';
+        countryCounts[c] = (countryCounts[c] || 0) + 1;
+    });
+
+    // Risk pie chart
+    if (riskChartObj) riskChartObj.destroy();
+    riskChartObj = new Chart(document.getElementById('riskChart'), {
+        type: 'doughnut',
+        data: {
+            labels: ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'],
+            datasets: [{
+                data: [riskCounts.CRITICAL, riskCounts.HIGH, riskCounts.MEDIUM, riskCounts.LOW],
+                backgroundColor: ['#ff4444', '#ff6644', '#ff8800', '#00ff88'],
+                borderWidth: 0
+            }]
+        },
+        options: {
+            plugins: { legend: { labels: { color: '#00ff88', font: { family: 'Courier New', size: 10 } } } }
+        }
+    });
+
+    // Top countries bar chart
+    const top = Object.entries(countryCounts).sort((a,b) => b[1]-a[1]).slice(0,5);
+    if (countryChartObj) countryChartObj.destroy();
+    countryChartObj = new Chart(document.getElementById('countryChart'), {
+        type: 'bar',
+        data: {
+            labels: top.map(e => e[0]),
+            datasets: [{
+                data: top.map(e => e[1]),
+                backgroundColor: '#00ff8844',
+                borderColor: '#00ff88',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { ticks: { color: '#00ff88', font: { family: 'Courier New', size: 10 } }, grid: { color: '#ffffff08' } },
+                y: { ticks: { color: '#00ff88', font: { family: 'Courier New', size: 10 } }, grid: { color: '#ffffff08' } }
+            }
+        }
+    });
 }
 </script>
 </body>
