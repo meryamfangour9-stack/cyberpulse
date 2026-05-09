@@ -182,7 +182,6 @@ async function getCoords(d) {
 }
 
 function showResult(d) {
-    function showResult(d) {
     const box = document.getElementById('result');
     box.style.display = 'block';
     const risk = getRisk(d.abuseConfidenceScore);
@@ -202,10 +201,11 @@ function showResult(d) {
         <div class="result-row"><span class="key">Total Reports</span><span class="val">${d.totalReports}</span></div>
         <div class="result-row"><span class="key">Last Reported</span><span class="val">${d.lastReportedAt ? d.lastReportedAt.split('T')[0] : 'Never'}</span></div>
         <div class="result-row"><span class="key">Malicious</span><span class="val ${d.isMalicious?'danger':''}">${d.isMalicious ? '🔴 YES' : '🟢 CLEAN'}</span></div>
+        <div class="result-row"><span class="key">VirusTotal</span><span class="val ${d.virusTotal?.vtScore > 0 ? 'danger' : ''}">${d.virusTotal?.malicious || 0} malicious · ${d.virusTotal?.suspicious || 0} suspicious · ${d.virusTotal?.harmless || 0} harmless</span></div>
     `;
 }
+
     
-}
 
 function updateFeed() {
     const feed = document.getElementById('feed');

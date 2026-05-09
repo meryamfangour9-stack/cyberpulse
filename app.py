@@ -30,6 +30,26 @@ ATTACK_CATEGORIES = {
     22: "SSH Attack",
     23: "IoT Targeted"
 }
+VT_API_KEY = "424f5c12cc3bc06786a0c32b70429fddb8806723f15a7823b4c830d7d24994d3"
+
+def check_virustotal(ip):
+    headers = {"x-apikey": VT_API_KEY}
+    try:
+        response = requests.get(
+            f"https://www.virustotal.com/api/v3/ip_addresses/{ip}",
+            headers=headers,
+            timeout=10
+        )
+        data = response.json()
+        stats = data.get('data', {}).get('attributes', {}).get('last_analysis_stats', {})
+        return {
+            'malicious': stats.get('malicious', 0),
+            'suspicious': stats.get('suspicious', 0),
+            'harmless': stats.get('harmless', 0),
+            'vtScore': stats.get('malicious', 0) + stats.get('suspicious', 0)
+        }
+    except:
+        return {'malicious': 0, 'suspicious': 0, 'harmless': 0, 'vtScore': 0}
 
 def get_risk_level(score):
     if score >= 90: return "CRITICAL"
@@ -76,6 +96,7 @@ def check_ip():
             d = data['data']
             d['riskLevel'] = get_risk_level(d.get('abuseConfidenceScore', 0))
             d['attackTypes'] = get_attack_types(d.get('reports', []))
+            d['virusTotal'] = check_virustotal(ip)
             d['isMalicious'] = d.get('abuseConfidenceScore', 0) >= 50
             
         return jsonify(data)
