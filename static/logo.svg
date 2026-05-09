@@ -1,0 +1,25 @@
+<svg width="200" height="120" viewBox="0 0 680 320" xmlns="http://www.w3.org/2000/svg">
+<style>
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+  @keyframes scan { 0%{opacity:0.2} 50%{opacity:0.8} 100%{opacity:0.2} }
+  .pulse { animation: pulse 2s ease-in-out infinite; }
+  .scan { animation: scan 3s ease-in-out infinite; }
+</style>
+<path d="M140 160 Q340 40 540 160 Q340 280 140 160Z" fill="#0a1a12" stroke="#00ff88" stroke-width="2"/>
+<circle cx="340" cy="160" r="70" fill="none" stroke="#00ff88" stroke-width="1" opacity="0.3"/>
+<circle cx="340" cy="160" r="55" fill="none" stroke="#00ff88" stroke-width="1" opacity="0.5"/>
+<circle cx="340" cy="160" r="40" fill="#0a1a12" stroke="#00ff88" stroke-width="1.5" opacity="0.8"/>
+<circle cx="340" cy="160" r="28" fill="#001a0d"/>
+<circle cx="340" cy="160" r="22" fill="#00ff88" opacity="0.15" class="pulse"/>
+<circle cx="340" cy="160" r="14" fill="#00ff88" opacity="0.3" class="pulse"/>
+<circle cx="340" cy="160" r="6" fill="#00ff88"/>
+<line x1="200" y1="160" x2="480" y2="160" stroke="#00ff88" stroke-width="0.5" opacity="0.4" class="scan"/>
+<path d="M270 130 L255 115 L230 115" fill="none" stroke="#00ff88" stroke-width="0.8" opacity="0.5"/>
+<path d="M410 130 L425 115 L450 115" fill="none" stroke="#00ff88" stroke-width="0.8" opacity="0.5"/>
+<path d="M270 190 L255 205 L230 205" fill="none" stroke="#00ff88" stroke-width="0.8" opacity="0.5"/>
+<path d="M410 190 L425 205 L450 205" fill="none" stroke="#00ff88" stroke-width="0.8" opacity="0.5"/>
+<circle cx="230" cy="115" r="2" fill="#00ff88" opacity="0.6"/>
+<circle cx="450" cy="115" r="2" fill="#00ff88" opacity="0.6"/>
+<circle cx="230" cy="205" r="2" fill="#00ff88" opacity="0.6"/>
+<circle cx="450" cy="205" r="2" fill="#00ff88" opacity="0.6"/>
+</svg>
